@@ -1,0 +1,6 @@
+{
+  "name": "Nova Player",
+  "description": "Un lecteur multimédia (vidéo & musique) ultra moderne, fluide et minimaliste pour tous vos fichiers locaux.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
