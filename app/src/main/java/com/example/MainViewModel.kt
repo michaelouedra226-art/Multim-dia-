@@ -36,6 +36,14 @@ class MainViewModel(val repository: MediaRepository) : ViewModel() {
     private val _activeVideo = MutableStateFlow<VideoItem?>(null)
     val activeVideo: StateFlow<VideoItem?> = _activeVideo.asStateFlow()
 
+    // Config: HTML5 Video Player toggle
+    private val _useHtml5Player = MutableStateFlow(true)
+    val useHtml5Player: StateFlow<Boolean> = _useHtml5Player.asStateFlow()
+
+    fun setUseHtml5Player(enabled: Boolean) {
+        _useHtml5Player.value = enabled
+    }
+
     // Selected folder drill-down state
     private val _selectedFolder = MutableStateFlow<FolderItem?>(null)
     val selectedFolder: StateFlow<FolderItem?> = _selectedFolder.asStateFlow()

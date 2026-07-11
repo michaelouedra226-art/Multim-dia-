@@ -33,6 +33,7 @@ import com.example.data.MediaDatabase
 import com.example.data.MediaRepository
 import com.example.ui.AudioPlayerOverlay
 import com.example.ui.VideoPlayerScreen
+import com.example.ui.Html5VideoPlayerScreen
 import com.example.ui.tabs.*
 import com.example.ui.theme.MyApplicationTheme
 
@@ -250,12 +251,22 @@ fun MainAppHost(
         }
     }
 
+    val useHtml5Player by viewModel.useHtml5Player.collectAsState()
+
     // Fullscreen Overlay Video Player Renderer (If active)
     if (activeVideo != null) {
-        VideoPlayerScreen(
-            video = activeVideo!!,
-            viewModel = viewModel,
-            onDismiss = { viewModel.stopVideo() }
-        )
+        if (useHtml5Player) {
+            Html5VideoPlayerScreen(
+                video = activeVideo!!,
+                viewModel = viewModel,
+                onDismiss = { viewModel.stopVideo() }
+            )
+        } else {
+            VideoPlayerScreen(
+                video = activeVideo!!,
+                viewModel = viewModel,
+                onDismiss = { viewModel.stopVideo() }
+            )
+        }
     }
 }

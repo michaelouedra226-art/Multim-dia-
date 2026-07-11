@@ -29,6 +29,7 @@ fun SettingsTab(viewModel: MainViewModel) {
     val coroutineScope = rememberCoroutineScope()
     val videos by viewModel.videos.collectAsState()
     val audios by viewModel.audios.collectAsState()
+    val useHtml5Player by viewModel.useHtml5Player.collectAsState()
 
     var resumeVideoAutomatically by remember { mutableStateOf(true) }
     var autoPlayNextTrack by remember { mutableStateOf(true) }
@@ -120,6 +121,15 @@ fun SettingsTab(viewModel: MainViewModel) {
         // Section: Lecture Vidéo
         item {
             SettingsSectionHeader(title = "Lecture Vidéo")
+        }
+
+        item {
+            SettingsToggleRow(
+                title = "Lecteur HTML5 réactif",
+                subtitle = "Utiliser l'élément vidéo HTML5 avec contrôles customisés (recommandé)",
+                checked = useHtml5Player,
+                onCheckedChange = { viewModel.setUseHtml5Player(it) }
+            )
         }
 
         item {
