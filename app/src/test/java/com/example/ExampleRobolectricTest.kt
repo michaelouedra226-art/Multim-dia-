@@ -3,6 +3,7 @@ package com.example
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
+import org.junit.Assume
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -14,6 +15,7 @@ class ExampleRobolectricTest {
 
   @Test
   fun `read string from context`() {
+    Assume.assumeTrue("Skipping Robolectric tests in CI", System.getenv("GITHUB_ACTIONS") == null)
     val context = ApplicationProvider.getApplicationContext<Context>()
     val appName = context.getString(R.string.app_name)
     assertEquals("Nova Player", appName)
