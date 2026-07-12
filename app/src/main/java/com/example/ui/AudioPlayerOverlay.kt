@@ -26,6 +26,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.BackHandler
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import coil.compose.rememberAsyncImagePainter
 import com.example.MainViewModel
 import com.example.player.AudioPlaybackManager
 import kotlinx.coroutines.launch
@@ -171,277 +176,351 @@ fun FullScreenAudioDeck(
 
     if (currentTrack == null) return
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Lecture en cours", style = MaterialTheme.typography.titleMedium) },
-                navigationIcon = {
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Minimize")
-                    }
-                },
-                actions = {
-                    // Favorite Toggle
-                    IconButton(onClick = {
-                        viewModel.toggleFavorite(currentTrack!!.path, false, currentTrack!!.title)
-                        Toast.makeText(
-                            context,
-                            if (currentTrack!!.isFavorite) "Retiré des favoris" else "Ajouté aux favoris",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }) {
-                        Icon(
-                            imageVector = if (currentTrack!!.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = "Favori",
-                            tint = if (currentTrack!!.isFavorite) Color.Red else MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background,
-        modifier = Modifier.fillMaxSize().testTag("full_audio_deck")
-    ) { innerPadding ->
-        Column(
+    val albumArtUri = "content://media/external/audio/albumart/${currentTrack!!.albumId}"
+
+    // Intercept hardware back button press to dismiss full screen deck and return to list
+    BackHandler(onBack = onDismiss)
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Fallback smooth background gradient
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 24.dp)
-                .navigationBarsPadding(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            // Album Art Hero Section
-            Box(
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            MaterialTheme.colorScheme.background
+                        )
+                    )
+                )
+        )
+
+        // Real-time blurred album art background
+        AsyncImage(
+            model = albumArtUri,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxSize()
+                .blur(30.dp)
+        )
+
+        // Semi-transparent overlay to ensure extreme text contrast & premium UI glassmorphism look
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.65f))
+        )
+
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Lecture en cours", style = MaterialTheme.typography.titleMedium, color = Color.White) },
+                    navigationIcon = {
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Minimize", tint = Color.White)
+                        }
+                    },
+                    actions = {
+                        // Favorite Toggle
+                        IconButton(onClick = {
+                            viewModel.toggleFavorite(currentTrack!!.path, false, currentTrack!!.title)
+                            Toast.makeText(
+                                context,
+                                if (currentTrack!!.isFavorite) "Retiré des favoris" else "Ajouté aux favoris",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }) {
+                            Icon(
+                                imageVector = if (currentTrack!!.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = "Favori",
+                                tint = if (currentTrack!!.isFavorite) Color.Red else Color.White
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent
+                    )
+                )
+            },
+            containerColor = Color.Transparent, // Completely transparent so the blurred artwork shows through
+            modifier = Modifier.fillMaxSize().testTag("full_audio_deck")
+        ) { innerPadding ->
+            Column(
                 modifier = Modifier
-                    .weight(1.0f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 24.dp)
+                    .navigationBarsPadding(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
+                // Album Art Hero Section
                 Box(
                     modifier = Modifier
-                        .size(240.dp)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(
-                            Brush.sweepGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.primary,
-                                    MaterialTheme.colorScheme.secondary,
-                                    MaterialTheme.colorScheme.tertiary,
-                                    MaterialTheme.colorScheme.primary
-                                )
-                            )
-                        ),
+                        .weight(1.0f)
+                        .fillMaxWidth(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        Icons.Default.MusicNote,
-                        contentDescription = null,
-                        tint = Color.Black,
-                        modifier = Modifier.size(96.dp)
-                    )
-                }
-            }
+                    Box(
+                        modifier = Modifier
+                            .size(260.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // Pre-rendered sweep gradient and icon as the default fallback
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.sweepGradient(
+                                        colors = listOf(
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                                            MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
+                                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f),
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                                        )
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.MusicNote,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.7f),
+                                modifier = Modifier.size(96.dp)
+                            )
+                        }
 
-            // Info Section
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = currentTrack!!.title,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = currentTrack!!.artist ?: "Artiste inconnu",
-                    fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Progress bar & Sliders
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Slider(
-                    value = position.toFloat(),
-                    onValueChange = { AudioPlaybackManager.seekTo(it.toLong()) },
-                    valueRange = 0f..maxOf(1f, duration.toFloat()),
-                    colors = SliderDefaults.colors(
-                        thumbColor = MaterialTheme.colorScheme.primary,
-                        activeTrackColor = MaterialTheme.colorScheme.primary
-                    )
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = formatTime(position),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                    )
-                    Text(
-                        text = formatTime(duration),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Main playback controls (Shuffle, Prev, Play, Next, Repeat)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Speed control
-                IconButton(onClick = {
-                    val nextSpeed = when (playbackSpeed) {
-                        0.5f -> 0.75f
-                        0.75f -> 1.0f
-                        1.0f -> 1.25f
-                        1.25f -> 1.5f
-                        1.5f -> 2.0f
-                        else -> 0.5f
+                        // Loaded high resolution Album Art
+                        AsyncImage(
+                            model = albumArtUri,
+                            contentDescription = "Pochette d'album",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
-                    AudioPlaybackManager.setSpeed(nextSpeed)
-                }) {
-                    Text(
-                        text = "${playbackSpeed}x",
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontSize = 14.sp
-                    )
                 }
 
-                IconButton(onClick = { AudioPlaybackManager.previous() }) {
-                    Icon(
-                        Icons.Default.SkipPrevious,
-                        contentDescription = "Prev",
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
-
-                IconButton(
-                    onClick = { AudioPlaybackManager.playPause() },
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary)
+                // Info Section
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = "Play/Pause",
-                        tint = Color.Black,
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
-
-                IconButton(onClick = { AudioPlaybackManager.next() }) {
-                    Icon(
-                        Icons.Default.SkipNext,
-                        contentDescription = "Next",
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
-
-                // Sleep Timer icon trigger
-                IconButton(onClick = { showTimerDialog = true }) {
-                    Icon(
-                        Icons.Default.Timer,
-                        contentDescription = "Sleep Timer",
-                        tint = if (sleepTimer > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Sub-control dashboard (Equalizer sliders, crossfade, and Bass Boost toggle)
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                ),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        "Effets & Égaliseur",
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = currentTrack!!.title,
+                        fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = currentTrack!!.artist ?: "Artiste inconnu",
+                        fontSize = 16.sp,
+                        color = Color.White.copy(alpha = 0.7f)
+                    )
+                }
 
-                    // Bass Boost & Crossfade toggles
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Progress bar & Sliders
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Slider(
+                        value = position.toFloat(),
+                        onValueChange = { AudioPlaybackManager.seekTo(it.toLong()) },
+                        valueRange = 0f..maxOf(1f, duration.toFloat()),
+                        colors = SliderDefaults.colors(
+                            thumbColor = MaterialTheme.colorScheme.primary,
+                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                            inactiveTrackColor = Color.White.copy(alpha = 0.24f)
+                        )
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Bass Boost", style = MaterialTheme.typography.bodySmall)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Switch(
-                                checked = bassBoost,
-                                onCheckedChange = { AudioPlaybackManager.toggleBassBoost() },
-                                modifier = Modifier.scale(0.8f)
-                            )
+                        Text(
+                            text = formatTime(position),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            text = formatTime(duration),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Main playback controls (Shuffle, Prev, Play, Next, Repeat)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceAround,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Speed control
+                    IconButton(onClick = {
+                        val nextSpeed = when (playbackSpeed) {
+                            0.5f -> 0.75f
+                            0.75f -> 1.0f
+                            1.0f -> 1.25f
+                            1.25f -> 1.5f
+                            1.5f -> 2.0f
+                            else -> 0.5f
                         }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Transition (Crossfade)", style = MaterialTheme.typography.bodySmall)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Switch(
-                                checked = crossfade,
-                                onCheckedChange = { AudioPlaybackManager.toggleCrossfade() },
-                                modifier = Modifier.scale(0.8f)
-                            )
-                        }
+                        AudioPlaybackManager.setSpeed(nextSpeed)
+                    }) {
+                        Text(
+                            text = "${playbackSpeed}x",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontSize = 14.sp
+                        )
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    IconButton(onClick = { AudioPlaybackManager.previous() }) {
+                        Icon(
+                            Icons.Default.SkipPrevious,
+                            contentDescription = "Prev",
+                            modifier = Modifier.size(48.dp),
+                            tint = Color.White
+                        )
+                    }
 
-                    // Simulated 3-Band Equalizer (Low, Mid, High)
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Grave (Low)", modifier = Modifier.width(80.dp), style = MaterialTheme.typography.bodySmall)
-                            Slider(
-                                value = eqLow.toFloat(),
-                                onValueChange = { AudioPlaybackManager.setEq(it.toInt(), eqMid, eqHigh) },
-                                valueRange = 0f..100f,
-                                modifier = Modifier.weight(1f)
-                            )
+                    IconButton(
+                        onClick = { AudioPlaybackManager.playPause() },
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
+                    ) {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = "Play/Pause",
+                            tint = Color.Black,
+                            modifier = Modifier.size(44.dp)
+                        )
+                    }
+
+                    IconButton(onClick = { AudioPlaybackManager.next() }) {
+                        Icon(
+                            Icons.Default.SkipNext,
+                            contentDescription = "Next",
+                            modifier = Modifier.size(48.dp),
+                            tint = Color.White
+                        )
+                    }
+
+                    // Sleep Timer icon trigger
+                    IconButton(onClick = { showTimerDialog = true }) {
+                        Icon(
+                            Icons.Default.Timer,
+                            contentDescription = "Sleep Timer",
+                            tint = if (sleepTimer > 0) MaterialTheme.colorScheme.primary else Color.White
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Sub-control dashboard (Equalizer sliders, crossfade, and Bass Boost toggle)
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.Black.copy(alpha = 0.4f)
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            "Effets & Égaliseur",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Bass Boost & Crossfade toggles
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Bass Boost", style = MaterialTheme.typography.bodySmall, color = Color.White)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Switch(
+                                    checked = bassBoost,
+                                    onCheckedChange = { AudioPlaybackManager.toggleBassBoost() },
+                                    modifier = Modifier.scale(0.8f)
+                                )
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Transition (Crossfade)", style = MaterialTheme.typography.bodySmall, color = Color.White)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Switch(
+                                    checked = crossfade,
+                                    onCheckedChange = { AudioPlaybackManager.toggleCrossfade() },
+                                    modifier = Modifier.scale(0.8f)
+                                )
+                            }
                         }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Médium (Mid)", modifier = Modifier.width(80.dp), style = MaterialTheme.typography.bodySmall)
-                            Slider(
-                                value = eqMid.toFloat(),
-                                onValueChange = { AudioPlaybackManager.setEq(eqLow, it.toInt(), eqHigh) },
-                                valueRange = 0f..100f,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Aigu (High)", modifier = Modifier.width(80.dp), style = MaterialTheme.typography.bodySmall)
-                            Slider(
-                                value = eqHigh.toFloat(),
-                                onValueChange = { AudioPlaybackManager.setEq(eqLow, eqMid, it.toInt()) },
-                                valueRange = 0f..100f,
-                                modifier = Modifier.weight(1f)
-                            )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Simulated 3-Band Equalizer (Low, Mid, High)
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Grave (Low)", modifier = Modifier.width(80.dp), style = MaterialTheme.typography.bodySmall, color = Color.White)
+                                Slider(
+                                    value = eqLow.toFloat(),
+                                    onValueChange = { AudioPlaybackManager.setEq(it.toInt(), eqMid, eqHigh) },
+                                    valueRange = 0f..100f,
+                                    modifier = Modifier.weight(1f),
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = MaterialTheme.colorScheme.secondary,
+                                        activeTrackColor = MaterialTheme.colorScheme.secondary,
+                                        inactiveTrackColor = Color.White.copy(alpha = 0.24f)
+                                    )
+                                )
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Médium (Mid)", modifier = Modifier.width(80.dp), style = MaterialTheme.typography.bodySmall, color = Color.White)
+                                Slider(
+                                    value = eqMid.toFloat(),
+                                    onValueChange = { AudioPlaybackManager.setEq(eqLow, it.toInt(), eqHigh) },
+                                    valueRange = 0f..100f,
+                                    modifier = Modifier.weight(1f),
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = MaterialTheme.colorScheme.secondary,
+                                        activeTrackColor = MaterialTheme.colorScheme.secondary,
+                                        inactiveTrackColor = Color.White.copy(alpha = 0.24f)
+                                    )
+                                )
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Aigu (High)", modifier = Modifier.width(80.dp), style = MaterialTheme.typography.bodySmall, color = Color.White)
+                                Slider(
+                                    value = eqHigh.toFloat(),
+                                    onValueChange = { AudioPlaybackManager.setEq(eqLow, eqMid, it.toInt()) },
+                                    valueRange = 0f..100f,
+                                    modifier = Modifier.weight(1f),
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = MaterialTheme.colorScheme.secondary,
+                                        activeTrackColor = MaterialTheme.colorScheme.secondary,
+                                        inactiveTrackColor = Color.White.copy(alpha = 0.24f)
+                                    )
+                                )
+                            }
                         }
                     }
                 }

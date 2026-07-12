@@ -23,6 +23,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.BackHandler
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import com.example.MainViewModel
 import com.example.data.AudioItem
 import com.example.data.PlaylistEntity
@@ -36,9 +39,20 @@ fun MusicTab(viewModel: MainViewModel) {
     val audios by viewModel.filteredAudios.collectAsState()
     val playlists by viewModel.playlists.collectAsState()
     val selectedPlaylist by viewModel.selectedPlaylist.collectAsState()
-
-    var activeSubTab by remember { mutableStateOf(0) } // 0: Tracks, 1: Playlists, 2: Favorites
+    var activeSubTab by remember { mutableStateOf(0) } // 0: Morceaux, 1: Artistes, 2: Albums, 3: Playlists, 4: Favoris
     var showCreateDialog by remember { mutableStateOf(false) }
+
+    var selectedArtist by remember { mutableStateOf<String?>(null) }
+    var selectedAlbum by remember { mutableStateOf<String?>(null) }
+
+    // Intercept back button to go back to list if viewing a specific artist or album
+    BackHandler(enabled = (selectedArtist != null || selectedAlbum != null)) {
+        if (selectedArtist != null) {
+            selectedArtist = null
+        } else if (selectedAlbum != null) {
+            selectedAlbum = null
+        }
+    }
 
     if (selectedPlaylist != null) {
         // Render playlist drill-down detail screen
@@ -51,25 +65,56 @@ fun MusicTab(viewModel: MainViewModel) {
             .fillMaxSize()
             .testTag("music_tab")
     ) {
-        // Tab Row selector
-        TabRow(
+        // Tab Row selector - Scrollable to comfortably fit 5 tabs
+        ScrollableTabRow(
             selectedTabIndex = activeSubTab,
             containerColor = Color.Transparent,
-            contentColor = MaterialTheme.colorScheme.primary
+            contentColor = MaterialTheme.colorScheme.primary,
+            edgePadding = 16.dp
         ) {
             Tab(
                 selected = activeSubTab == 0,
-                onClick = { activeSubTab = 0 },
+                onClick = { 
+                    activeSubTab = 0
+                    selectedArtist = null
+                    selectedAlbum = null
+                },
                 text = { Text("Morceaux") }
             )
             Tab(
                 selected = activeSubTab == 1,
-                onClick = { activeSubTab = 1 },
-                text = { Text("Playlists") }
+                onClick = { 
+                    activeSubTab = 1
+                    selectedArtist = null
+                    selectedAlbum = null
+                },
+                text = { Text("Artistes") }
             )
             Tab(
                 selected = activeSubTab == 2,
-                onClick = { activeSubTab = 2 },
+                onClick = { 
+                    activeSubTab = 2
+                    selectedArtist = null
+                    selectedAlbum = null
+                },
+                text = { Text("Albums") }
+            )
+            Tab(
+                selected = activeSubTab == 3,
+                onClick = { 
+                    activeSubTab = 3
+                    selectedArtist = null
+                    selectedAlbum = null
+                },
+                text = { Text("Playlists") }
+            )
+            Tab(
+                selected = activeSubTab == 4,
+                onClick = { 
+                    activeSubTab = 4
+                    selectedArtist = null
+                    selectedAlbum = null
+                },
                 text = { Text("Favoris") }
             )
         }
@@ -110,6 +155,246 @@ fun MusicTab(viewModel: MainViewModel) {
             }
 
             1 -> {
+                // Group by Artist
+                val artistsGrouped = remember(audios) {
+                    audios.groupBy { it.artist ?: "Artiste inconnu" }.toSortedMap()
+                }
+
+                if (selectedArtist == null) {
+                    if (artistsGrouped.isEmpty()) {
+                        MusicEmptyState(message = "Aucun artiste détecté.")
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(top = 8.dp, bottom = 120.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(artistsGrouped.keys.toList()) { artistName ->
+                                val artistTracks = artistsGrouped[artistName] ?: emptyList()
+                                val trackCount = artistTracks.size
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 2.dp)
+                                        .clickable { selectedArtist = artistName },
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(16.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Person,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(16.dp))
+                                        Column {
+                                            Text(
+                                                text = artistName,
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                text = "$trackCount ${if (trackCount > 1) "titres" else "titre"}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    val artistTracks = artistsGrouped[selectedArtist] ?: emptyList()
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = { selectedArtist = null }) {
+                                Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = selectedArtist!!,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 120.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            itemsIndexed(artistTracks, key = { _, audio -> audio.path }) { index, audio ->
+                                AudioTrackRow(
+                                    audio = audio,
+                                    onClick = { AudioPlaybackManager.setPlaylist(artistTracks, index) },
+                                    onAddToPlaylist = { playlistId ->
+                                        viewModel.addMediaToPlaylist(playlistId, audio.path, false, audio.title)
+                                        Toast.makeText(context, "Ajouté à la playlist !", Toast.LENGTH_SHORT).show()
+                                    },
+                                    onToggleFavorite = {
+                                        viewModel.toggleFavorite(audio.path, false, audio.title)
+                                    },
+                                    playlists = playlists,
+                                    onCreatePlaylist = { name ->
+                                        viewModel.createPlaylist(name) { id ->
+                                            viewModel.addMediaToPlaylist(id, audio.path, false, audio.title)
+                                            Toast.makeText(context, "Playlist créée avec ce titre !", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            2 -> {
+                // Group by Album
+                val albumsGrouped = remember(audios) {
+                    audios.groupBy { it.album ?: "Album inconnu" }.toSortedMap()
+                }
+
+                if (selectedAlbum == null) {
+                    if (albumsGrouped.isEmpty()) {
+                        MusicEmptyState(message = "Aucun album détecté.")
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(top = 8.dp, bottom = 120.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(albumsGrouped.keys.toList()) { albumName ->
+                                val albumTracks = albumsGrouped[albumName] ?: emptyList()
+                                val trackCount = albumTracks.size
+                                val representativeTrack = albumTracks.firstOrNull()
+                                val albumArtUri = representativeTrack?.let { "content://media/external/audio/albumart/${it.albumId}" }
+
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 2.dp)
+                                        .clickable { selectedAlbum = albumName },
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(16.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(50.dp)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Box(
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.Album,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.secondary
+                                                )
+                                            }
+                                            if (albumArtUri != null) {
+                                                AsyncImage(
+                                                    model = albumArtUri,
+                                                    contentDescription = null,
+                                                    contentScale = ContentScale.Crop,
+                                                    modifier = Modifier.fillMaxSize()
+                                                )
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.width(16.dp))
+                                        Column {
+                                            Text(
+                                                text = albumName,
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                text = "${representativeTrack?.artist ?: "Artiste inconnu"} • $trackCount ${if (trackCount > 1) "titres" else "titre"}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    val albumTracks = albumsGrouped[selectedAlbum] ?: emptyList()
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = { selectedAlbum = null }) {
+                                Icon(Icons.Default.ArrowBack, contentDescription = "Retour")
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = selectedAlbum!!,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 120.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            itemsIndexed(albumTracks, key = { _, audio -> audio.path }) { index, audio ->
+                                AudioTrackRow(
+                                    audio = audio,
+                                    onClick = { AudioPlaybackManager.setPlaylist(albumTracks, index) },
+                                    onAddToPlaylist = { playlistId ->
+                                        viewModel.addMediaToPlaylist(playlistId, audio.path, false, audio.title)
+                                        Toast.makeText(context, "Ajouté à la playlist !", Toast.LENGTH_SHORT).show()
+                                    },
+                                    onToggleFavorite = {
+                                        viewModel.toggleFavorite(audio.path, false, audio.title)
+                                    },
+                                    playlists = playlists,
+                                    onCreatePlaylist = { name ->
+                                        viewModel.createPlaylist(name) { id ->
+                                            viewModel.addMediaToPlaylist(id, audio.path, false, audio.title)
+                                            Toast.makeText(context, "Playlist créée avec ce titre !", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            3 -> {
                 // Playlists custom category
                 Column(modifier = Modifier.fillMaxSize()) {
                     // Create playlist button trigger
@@ -181,7 +466,7 @@ fun MusicTab(viewModel: MainViewModel) {
                 }
             }
 
-            2 -> {
+            4 -> {
                 // Favorites subtab list
                 val favoriteAudios = audios.filter { it.isFavorite }
                 if (favoriteAudios.isEmpty()) {
