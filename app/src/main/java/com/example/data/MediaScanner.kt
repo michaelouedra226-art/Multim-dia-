@@ -98,7 +98,12 @@ object MediaScanner {
                     val dateAdded = cursor.getLong(dateCol)
 
                     if (path.isNotEmpty() && File(path).exists()) {
-                        list.add(AudioItem(id, name, path, duration, size, artist, album, albumId, dateAdded))
+                        val isWhatsAppVoice = path.contains("WhatsApp", ignoreCase = true) || 
+                                              path.contains("Sent", ignoreCase = true) || 
+                                              path.contains("Voice Notes", ignoreCase = true)
+                        if (!isWhatsAppVoice) {
+                            list.add(AudioItem(id, name, path, duration, size, artist, album, albumId, dateAdded))
+                        }
                     }
                 }
             }
